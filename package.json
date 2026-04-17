@@ -1,0 +1,53 @@
+{
+  "name": "jolly-crawl",
+  "version": "0.0.1",
+  "description": "Structured-concurrency web crawler built on jolly-coop",
+  "author": "Arijit Gogoi",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/arijit-gogoi/jolly-crawl.git"
+  },
+  "homepage": "https://github.com/arijit-gogoi/jolly-crawl",
+  "bugs": "https://github.com/arijit-gogoi/jolly-crawl/issues",
+  "keywords": [
+    "crawler",
+    "scraper",
+    "structured-concurrency",
+    "jolly-coop",
+    "cli"
+  ],
+  "type": "module",
+  "bin": {
+    "jolly-crawl": "./dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/cli.ts src/index.ts --format esm --dts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "jolly-coop": "^0.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^4.1.4"
+  }
+}

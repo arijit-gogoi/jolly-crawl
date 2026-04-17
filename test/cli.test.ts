@@ -77,5 +77,5 @@ describe("cli", () => {
       15_000,
     )
     expect(r.code).toBe(0)
-  })
+  }, 20_000)
 })

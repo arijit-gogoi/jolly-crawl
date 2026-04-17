@@ -1,6 +1,6 @@
 {
   "name": "jolly-crawl",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Structured-concurrency web crawler built on jolly-coop",
   "author": "Arijit Gogoi",
   "license": "MIT",

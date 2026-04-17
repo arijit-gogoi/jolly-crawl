@@ -1,4 +1,4 @@
-import { scope, sleep, TimeoutError } from "jolly-coop"
+import { scope, sleep, ScopeCancelledError } from "jolly-coop"
 import { createOutputWriter, type Writer } from "./output.js"
 import { fetchPage } from "./fetch.js"
 import { parsePage } from "./parse.js"
@@ -106,8 +106,16 @@ export async function crawl(opts: CrawlOptions): Promise<CrawlResult> {
       s.done()
     })
   } catch (err) {
-    if (err instanceof TimeoutError) {
-      return { stats, endedBy: "deadline" }
+    // jolly-coop 0.3.3+: `deadline:` throws DeadlineError, `timeout:` throws
+    // TimeoutError, both subclass ScopeCancelledError. We use `deadline:` in
+    // the root scope, but catch the whole family and discriminate via `.cause`
+    // so future additions (e.g. a "drained-with-errors" cause) keep compiling.
+    if (err instanceof ScopeCancelledError) {
+      if (err.cause === "timeout" || err.cause === "deadline") {
+        return { stats, endedBy: "deadline" }
+      }
+      // "done" is unreachable via catch (done() resolves the scope), but
+      // enumerating it keeps the switch exhaustive for future readers.
     }
     if (opts.signal?.aborted) {
       return { stats, endedBy: "abort" }

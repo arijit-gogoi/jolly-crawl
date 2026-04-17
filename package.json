@@ -43,7 +43,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "jolly-coop": "^0.3.1"
+    "jolly-coop": "^0.3.3"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

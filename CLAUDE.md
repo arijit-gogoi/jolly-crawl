@@ -43,7 +43,9 @@ if (!result.ok) { /* handle locally, scope still alive */ }
 
 Catching *after* `await t` is too late — the scope has already started cancelling siblings.
 
-**`cancel()` always rejects. `done()` resolves gracefully.** Use `done()` when shutdown is intentional (deadline reached, work complete); `cancel(err)` when something went wrong. Observers distinguish via `s.signal.reason instanceof ScopeDoneSignal` (renamed from `ScopeDoneError` in jolly-coop v0.3.1 — now a subclass of `ScopeCancelledError` with `cause: "done"`).
+**`cancel()` always rejects. `done()` resolves gracefully.** Use `done()` when shutdown is intentional (deadline reached, work complete); `cancel(err)` when something went wrong. Observers distinguish via `s.signal.reason instanceof ScopeDoneSignal`.
+
+**Error hierarchy (jolly-coop 0.3.3+):** `ScopeCancelledError` is the base of the family the runtime synthesizes. Subclasses are `TimeoutError` (from `timeout:` option), `DeadlineError` (from `deadline:` option), and `ScopeDoneSignal` (from `done()`). Each carries `cause: "timeout" | "deadline" | "done"`. To catch every time-bound failure in one branch, use `if (err instanceof ScopeCancelledError)` and switch on `.cause` — see `src/crawl.ts`. Catching only `TimeoutError` will miss `deadline:` rejections (this was a live bug in v0.1.0 after the 0.3.3 upgrade).
 
 **Resource cleanup is LIFO.** Register via `s.resource(value, disposer)` in dependency order; cleanup runs in reverse on scope exit regardless of success, failure, or cancel. If resource B depends on resource A, register A first, B second.
 

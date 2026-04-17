@@ -74,7 +74,7 @@ console.log(result.stats, result.endedBy)
 ## Out of scope for v0.1.0
 
 robots.txt respect, rate limiting, cookies/session, JS rendering, resume-from-checkpoint,
-multiple seed URLs, non-HTML content downloads. See [PLAN.md](PLAN.md) §10 for details.
+multiple seed URLs, non-HTML content downloads. See [ROADMAP.md](ROADMAP.md) for candidates.
 
 ## License
 

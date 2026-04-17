@@ -2,5 +2,6 @@ node_modules/
 dist/
 coverage/
 *.log
+*.ndjson
 .DS_Store
 .claude/settings.local.json

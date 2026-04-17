@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 import { parseArgs } from "node:util"
-import { TimeoutError } from "jolly-coop"
 import { crawl } from "./crawl.js"
 import { parseDuration } from "./time.js"
-import type { CrawlOptions } from "./types.js"
+import { renderFinal } from "./progress.js"
+import type { CrawlOptions, CrawlResult } from "./types.js"
 import { VERSION } from "./index.js"
 
 const USAGE = `jolly-crawl ${VERSION} — structured-concurrency web crawler
@@ -136,17 +136,23 @@ async function main() {
   process.on("SIGTERM", onSignal)
 
   try {
-    await crawl({ ...opts, signal: abort.signal })
-    process.exit(0)
+    const result = await crawl({ ...opts, signal: abort.signal })
+    writeSummary(result)
+    process.exitCode = (result.endedBy === "abort" || interrupted) ? 130 : 0
   } catch (err) {
-    if (err instanceof TimeoutError) process.exit(0)
-    if (interrupted || abort.signal.aborted) process.exit(130)
     process.stderr.write(`\nfatal: ${(err as Error).stack ?? String(err)}\n`)
-    process.exit(1)
+    process.exitCode = 1
   } finally {
     process.off("SIGINT", onSignal)
     process.off("SIGTERM", onSignal)
   }
+}
+
+function writeSummary(result: CrawlResult): void {
+  const suffix = result.endedBy === "drained"
+    ? ""
+    : ` (ended by ${result.endedBy})`
+  process.stderr.write(renderFinal(result.stats) + suffix + "\n")
 }
 
 main()

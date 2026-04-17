@@ -1,4 +1,9 @@
-import { scope } from "jolly-coop"
+import { scope, sleep, TimeoutError } from "jolly-coop"
+import { createOutputWriter, type Writer } from "./output.js"
+import { fetchPage } from "./fetch.js"
+import { parsePage } from "./parse.js"
+import { CrawlQueue } from "./queue.js"
+import { runProgress } from "./progress.js"
 import type { CrawlOptions, CrawlResult, Stats } from "./types.js"
 
 export async function crawl(opts: CrawlOptions): Promise<CrawlResult> {
@@ -11,13 +16,104 @@ export async function crawl(opts: CrawlOptions): Promise<CrawlResult> {
     startedAt: Date.now(),
   }
 
-  await scope({ deadline: opts.deadlineMs, signal: opts.signal }, async s => {
-    // M2 will register the output writer resource here.
-    // M5 will spawn the queue driver + fetch pool here.
-    // M6 will spawn the progress printer here.
-    // For now the scope resolves immediately — M1 only proves the wiring.
-    s.done()
+  const seedOrigin = new URL(opts.seed).origin
+  const queue = new CrawlQueue({
+    maxDepth: opts.maxDepth,
+    sameOrigin: opts.sameOrigin,
+    seedOrigin,
   })
+  queue.enqueue(opts.seed, 0)
+  stats.queued = queue.size
 
-  return { stats }
+  try {
+    await scope({ deadline: opts.deadlineMs, signal: opts.signal }, async s => {
+      const writer: Writer = await s.resource(
+        await createOutputWriter(opts.out),
+        w => w.close(),
+      )
+
+      s.spawn(async () => {
+        try {
+          await runProgress(stats, s.signal)
+        } catch {
+          // Defensive — runProgress swallows aborts internally.
+        }
+      })
+
+      const driver = s.spawn(async () => {
+        await scope({ limit: opts.concurrency, signal: s.signal }, async pool => {
+          while (!queue.isEmpty || pool.active > 0) {
+            if (queue.isEmpty || pool.active >= opts.concurrency) {
+              try {
+                await sleep(10, pool.signal)
+              } catch {
+                return
+              }
+              continue
+            }
+            const entry = queue.dequeue()!
+            stats.queued = queue.size
+
+            pool.spawn(async () => {
+              stats.attempted++
+              stats.inFlight++
+              try {
+                const result = await fetchPage(entry.url, {
+                  timeoutMs: opts.perPageTimeoutMs,
+                  userAgent: opts.userAgent,
+                  signal: pool.signal,
+                })
+                const ts = new Date().toISOString()
+
+                if (result.ok) {
+                  const parsed = parsePage(result.body, entry.url)
+                  await writer.write({
+                    url: entry.url,
+                    depth: entry.depth,
+                    status: result.status,
+                    title: parsed.title,
+                    links: parsed.links,
+                    duration_ms: result.duration_ms,
+                    ts,
+                  })
+                  stats.succeeded++
+                  if (entry.depth < opts.maxDepth) {
+                    for (const link of parsed.links) {
+                      if (queue.enqueue(link, entry.depth + 1)) {
+                        stats.queued = queue.size
+                      }
+                    }
+                  }
+                } else {
+                  await writer.write({
+                    url: entry.url,
+                    depth: entry.depth,
+                    error: result.error.name || "Error",
+                    message: result.error.message,
+                    ts,
+                  })
+                  stats.failed++
+                }
+              } finally {
+                stats.inFlight--
+              }
+            })
+          }
+        })
+      })
+
+      await driver
+      s.done()
+    })
+  } catch (err) {
+    if (err instanceof TimeoutError) {
+      return { stats, endedBy: "deadline" }
+    }
+    if (opts.signal?.aborted) {
+      return { stats, endedBy: "abort" }
+    }
+    throw err
+  }
+
+  return { stats, endedBy: "drained" }
 }

@@ -39,6 +39,9 @@ export interface CrawlErrorRecord {
 
 export type CrawlRecord = CrawlSuccessRecord | CrawlErrorRecord
 
+export type CrawlEndReason = "drained" | "deadline" | "abort"
+
 export interface CrawlResult {
   stats: Stats
+  endedBy: CrawlEndReason
 }

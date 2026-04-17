@@ -69,8 +69,13 @@ describe("cli", () => {
     expect(r.stdout).toMatch(/jolly-crawl /)
   })
 
-  it("exits 0 on skeleton crawl (M1 stub)", () => {
-    const r = runCli(["https://example.com", "--depth", "0", "--deadline", "1s"])
+  it("exits 0 when deadline elapses on an unreachable host", () => {
+    // Non-routable TEST-NET-1 (RFC 5737); fetch will fail fast, retries will
+    // burn some backoff, deadline fires — exit 0 (deadline is graceful).
+    const r = runCli(
+      ["http://192.0.2.1", "--depth", "0", "--deadline", "2s", "--per-page-timeout", "500ms"],
+      15_000,
+    )
     expect(r.code).toBe(0)
   })
 })
